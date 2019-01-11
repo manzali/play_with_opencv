@@ -3,34 +3,62 @@ import os
 import numpy as np
 import cv2
 
-directory = "output"
-if not os.path.exists(directory):
-    os.makedirs(directory)
+from os import listdir
+from os.path import isfile, join
 
-# construct a edge detection filter
-edge_kernel = np.array((
-	[-1, -1, -1],
-	[-1, 8, -1],
-	[-1, -1, -1]))
+def detect(filename, dir_in, dir_out):
+	# load the input image
+	image = cv2.imread(join(dir_in, filename))
 
-# load the input image
-image = cv2.imread("image.jpg")
+	# convert image to grayscale
+	image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# convert image to grayscale
-gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-cv2.imwrite("output/gray_image.jpg", gray_image)
+	# adjust the contrast of the gray image
+	equalized = cv2.equalizeHist(image)
+	#cv2.imwrite(join(dir_out, "equalized.png"), equalized)
 
-# apply edge detection filter to the gray image
-edges = cv2.filter2D(gray_image, -1, edge_kernel)
-cv2.imwrite("output/edges.jpg", edges)
+	ret, thresh_img = cv2.threshold(equalized,70,255,cv2.THRESH_BINARY)
+	#cv2.imwrite(join(dir_out, "thresh.png"), thresh_img)
 
-# adjust the contrast of the gray image
-equalized = cv2.equalizeHist(gray_image)
-cv2.imwrite("output/equalized.jpg", equalized)
+	height, width = thresh_img.shape[:2]
+	#blank_image = np.zeros((height,width,3), np.uint8)
+	blank_image = cv2.cvtColor(equalized, cv2.COLOR_GRAY2RGB)
+	im2, contours, hierarchy = cv2.findContours(thresh_img,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+	for cnt in contours:
+		epsilon = 0.05*cv2.arcLength(cnt,True)
+		approx = cv2.approxPolyDP(cnt,epsilon,True)
+		if len(approx) == 4:
+			# square
+			x,y,w,h = cv2.boundingRect(approx)
+			ratio = abs(w / h)
+			#print (str(x) + " , " + str(y) + " , " + str(w) + " , " + str(h))
+			#print (str(ratio))
+			if ratio > 0.9 and ratio < 1.1:
+				cv2.drawContours(blank_image, [approx], 0, (0,255,0), 3)
+	
+	cv2.imwrite(join(dir_out, filename), blank_image)
 
-denoised_equalized = cv2.fastNlMeansDenoising(equalized, None, 9, 13)
-cv2.imwrite("output/denoised_equalized.jpg", denoised_equalized)
 
-# apply edge detection filter to the gray image
-denoised_edges = cv2.filter2D(denoised_equalized, -1, edge_kernel)
-cv2.imwrite("output/denoised_edges.jpg", denoised_edges)
+###################
+#  START PROGRAM  #
+###################
+
+
+# cerate output dir if it doesn't exist
+output_dir = "output"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# cerate contours dir if it doesn't exist
+#cont_dir = "contours"
+#if not os.path.exists(cont_dir):
+#    os.makedirs(cont_dir)
+
+	
+#mypath = "frames"
+#onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+
+#for f in onlyfiles:
+#	detect(f, mypath, cont_dir)
+
+detect("frame.png", ".", "output")
