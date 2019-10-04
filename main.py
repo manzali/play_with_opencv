@@ -6,36 +6,66 @@ import cv2
 from os import listdir
 from os.path import isfile, join
 
-def detect(filename, dir_in, dir_out):
-
-	# load the input image
-	image = cv2.imread(join(dir_in, filename))
-
+def apply_gray(image):
 	# convert image to grayscale
-	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	cv2.imwrite(join(dir_out, "gray.png"), gray)
+	return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-	#blur the image with an aperture of X
-	blur = cv2.medianBlur(gray, 7)
-	cv2.imwrite(join(dir_out, "blur.png"), blur)
+def apply_blur(image):
+	# blur the image with an aperture of X
+	return cv2.medianBlur(image, 7)
 
+def dynamic_threshold(image):
 	# apply dynamic threshold
-	thresh = cv2.adaptiveThreshold(blur,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,3)
-	cv2.imwrite(join(dir_out, "thresh.png"), thresh)
+	return cv2.adaptiveThreshold(image,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,3)
+
+def binary_threshold(image):
+	# apply bynary threshold
+	return cv2.threshold(image,70,255,cv2.THRESH_BINARY)
+
+def equalize(image):
+	# adjust the contrast of the image
+	return cv2.equalizeHist(image)
+
+def subtract(img1, img2):
+	# subtract img2 to img1
+	return cv2.subtract(img1,img2)
+
+def write_img(image, dir_out, name):
+	# write image inside dir_out
+	cv2.imwrite(join(dir_out, name), image)
+
+def detect(image, dir_out):
+
+	image = apply_gray(image)
+
+	write_img(image, dir_out, "gray.png")
+
+	image = apply_blur(image)
+
+	thresh = dynamic_threshold(image)
+
+	write_img(thresh, dir_out, "thresh.png")
+
+	image = subtract(thresh, image)
+
+	write_img(image, dir_out, "diff.png")
 
 	# https://www.analyticsvidhya.com/blog/2019/03/opencv-functions-computer-vision-python/
 
 	# instantiate sift object, calculate keypoints and their orientation
-	sift = cv2.xfeatures2d.SIFT_create()
-	keypoints,descriptors = sift.detectAndCompute(thresh,None)
+	#sift = cv2.xfeatures2d.SIFT_create()
+	#keypoints,descriptors = sift.detectAndCompute(thresh,None)
 
 	#instantiate surf object, calculate keypoints and their orientation
 	#surf = cv2.xfeatures2d.SURF_create(800)
 	#keypoints,descriptors = surf.detectAndCompute(thresh,None)
 
 	# plot keypoints on the image
-	with_keypoints = cv2.drawKeypoints(gray, keypoints, outImage = None)
-	cv2.imwrite(join(dir_out, "sift.png"), with_keypoints)
+	#with_keypoints = cv2.drawKeypoints(gray, keypoints, outImage = None)
+	#cv2.imwrite(join(dir_out, "sift.png"), with_keypoints)
+
+
+
 
 
 	# adjust the contrast of the gray image
@@ -89,4 +119,7 @@ if not os.path.exists(output_dir):
 #for f in onlyfiles:
 #	detect(f, mypath, cont_dir)
 
-detect("frame.png", ".", "output")
+# load the input image
+image = cv2.imread(join(".", "frame.png"))
+# call detect function
+detect(image, "output")
